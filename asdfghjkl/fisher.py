@@ -549,15 +549,38 @@ def fisher_eig(
     # for making MC samplings at each iteration deterministic
     random_seed = torch.rand(1) * 100 if fisher_type == FISHER_MC else None
 
-    eigvals, eigvecs = power_method(fvp_fn,
-                                    model,
-                                    top_n=top_n,
-                                    max_iters=max_iters,
-                                    tol=tol,
-                                    is_distributed=is_distributed,
-                                    print_progress=print_progress,
-                                    random_seed=random_seed
-                                    )
+    if fisher_shape in [SHAPE_KRON, SHAPE_DIAG]:
+        f = fisher(model,
+                   loss_type,
+                   fisher_type,
+                   fisher_shape,
+                   inputs=inputs,
+                   targets=targets,
+                   data_loader=data_loader,
+                   is_distributed=is_distributed,
+                   all_reduce=True,
+                   **kwargs)
+        eigvals = eigvecs = []
+        for module in f._model.modules():
+            matrix = getattr(module, fisher_type, None)
+            if matrix is None:
+                continue
+            if fisher_shape is SHAPE_KRON:
+                assert matrix.has_kron
+                eigvals = matrix.kron.eigenvalues()[:top_n]
+            elif fisher_shape is SHAPE_DIAG:
+                assert matrix.has_diag
+                eigvals = matrix.diag.eigenvalues()[:top_n]
+    else:
+        eigvals, eigvecs = power_method(fvp_fn,
+                                        model,
+                                        top_n=top_n,
+                                        max_iters=max_iters,
+                                        tol=tol,
+                                        is_distributed=is_distributed,
+                                        print_progress=print_progress,
+                                        random_seed=random_seed
+                                        )
 
     return eigvals, eigvecs
 
