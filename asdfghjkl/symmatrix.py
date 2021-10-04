@@ -125,12 +125,12 @@ class SymMatrix:
 
     def eigenvalues(self):
         assert self.has_data
-        eig, _ = torch.symeig(self.data)
+        eig = torch.linalg.eigvalsh(self.data, UPLO='U')
         return torch.sort(eig, descending=True)[0]
 
     def top_eigenvalue(self):
         assert self.has_data
-        eig, _ = torch.symeig(self.data)
+        eig = torch.linalg.eigvalsh(self.data, UPLO='U')
         return eig.max().item()
 
     def trace(self):
@@ -232,14 +232,14 @@ class Kron:
         self.B.mul_(scale)
 
     def eigenvalues(self):
-        eig_A, _ = torch.symeig(self.A)
-        eig_B, _ = torch.symeig(self.B)
-        eig = torch.ger(eig_A, eig_B).flatten()
+        eig_A = torch.linalg.eigvalsh(self.A, UPLO='U')
+        eig_B = torch.linalg.eigvalsh(self.B, UPLO='U')
+        eig = torch.outer(eig_A, eig_B).flatten()
         return torch.sort(eig, descending=True)[0]
 
     def top_eigenvalue(self):
-        eig_A, _ = torch.symeig(self.A)
-        eig_B, _ = torch.symeig(self.B)
+        eig_A = torch.linalg.eigvalsh(self.A, UPLO='U')
+        eig_B = torch.linalg.eigvalsh(self.B, UPLO='U')
         return (eig_A.max() * eig_B.max()).item()
 
     def trace(self):
@@ -311,13 +311,13 @@ class Diag:
             self.bias.mul_(scale)
 
     def eigenvalues(self):
-        eig = []
+        eigvals = []
         if self.has_weight:
-            eig.append(self.weight.flatten())
+            eigvals.append(self.weight.flatten())
         if self.has_bias:
-            eig.append(self.bias.flatten())
-        eig = torch.cat(eig)
-        return torch.sort(eig, descending=True)[0]
+            eigvals.append(self.bias.flatten())
+        eigvals = torch.cat(eigvals)
+        return torch.sort(eigvals, descending=True)[0]
 
     def top_eigenvalue(self):
         top = -1
@@ -384,12 +384,12 @@ class UnitWise:
 
     def eigenvalues(self):
         assert self.has_data
-        eig = [torch.symeig(block)[0] for block in self.data]
+        eig = [torch.linalg.eigvalsh(block, UPLO='U') for block in self.data]
         eig = torch.cat(eig)
         return torch.sort(eig, descending=True)[0]
 
     def top_eigenvalue(self):
-        top = max([torch.symeig(block)[0].max().item() for block in self.data])
+        top = max([torch.linalg.eigvalsh(block, UPLO='U').max().item() for block in self.data])
         return top
 
     def trace(self):

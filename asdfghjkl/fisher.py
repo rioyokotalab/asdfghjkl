@@ -560,17 +560,21 @@ def fisher_eig(
                    is_distributed=is_distributed,
                    all_reduce=True,
                    **kwargs)
-        eigvals = eigvecs = []
+        eigvals = []
+        eigvecs = []
         for module in f._model.modules():
             matrix = getattr(module, fisher_type, None)
             if matrix is None:
                 continue
             if fisher_shape is SHAPE_KRON:
                 assert matrix.has_kron
-                eigvals = matrix.kron.eigenvalues()[:top_n]
+                block = matrix.kron
             elif fisher_shape is SHAPE_DIAG:
                 assert matrix.has_diag
-                eigvals = matrix.diag.eigenvalues()[:top_n]
+                block = matrix.diag
+            eigval = block.eigenvalues()
+            eigvals.extend(eigval.tolist())
+        eigvals = sorted(eigvals, reverse=True)[:top_n]
     else:
         eigvals, eigvecs = power_method(fvp_fn,
                                         model,
